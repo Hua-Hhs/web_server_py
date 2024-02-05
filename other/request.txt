@@ -1,0 +1,6 @@
+python 3.9
+pip install aiohttp
+python3.9 -m pip install aiohttp aiohttp_jinja2 jinja2 aiofiles
+python3.9 -m pip install aiofiles
+sudo apt install ffmpeg  #确保你的服务器能够解码MP4文件
+

@@ -1,0 +1,11 @@
+[Unit]
+Description=myweb.py
+After=network.target
+
+[Service]
+User=root
+ExecStart=python3.9 /etc/web_server_py/1.py 20001
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

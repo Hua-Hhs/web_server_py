@@ -1,0 +1,75 @@
+<!-- $def with (file_info_list) -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">    
+    <title>FileManager</title>
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <h1>MyFiles:</h1>
+    <ul>
+        \{{current_path}}:
+        {% if current_path != '' %}
+        <li>
+            <a href="/list?current_path={{quoted_current_path}}&folder_name={{ '' }}&special_current_path={{quoted_special_current_path}}&special_folder_name={{ '-1' }}">..</a>
+        </li>
+        {% endif %}
+        {% for file_info in file_info_list %}
+        <li>
+            {% if file_info.is_directory %}            
+                <a href="/list?current_path={{quoted_current_path}}&folder_name={{ file_info.quoted_file_name }}&special_current_path={{quoted_special_current_path}}&special_folder_name={{ '-1' }}">{{ file_info.file_name }}/</a>
+            {% else %}
+            <a href="/download?current_path={{quoted_current_path}}&file_name={{ file_info.quoted_file_name }}">{{ file_info.file_name }}</a>
+            {{ file_info.size_mb }}
+            {% endif %}
+            
+        </li>
+        {% endfor %}
+    </ul>
+      
+    <h2>上传文件：</h2>
+
+    <form method="POST" enctype="multipart/form-data" action="/upload?current_path={{quoted_current_path}}&special_current_path={{quoted_special_current_path}}">
+        <label>大于5M暂时请走ip直传，不要通过域名访问</label>
+        <input type="file" name="file" />
+        <input type="submit" value="上传" />
+    </form>
+    <h2>新建文件夹</h2>
+    <form id="text-form" method="POST" action="/createfolder?current_path={{quoted_current_path}}&special_current_path={{quoted_special_current_path}}">
+        <input type="text" name="folder_name" id="text-data" placeholder="输入文本" />
+        <button type="submit" id="send-button">创建</button>
+    </form>
+    <h1>SpecialFiles:</h1>
+    <ul>
+        \{{special_current_path}}:
+        {% if special_current_path != '' %}
+        <li>
+            <a href="/list?current_path={{quoted_current_path}}&folder_name={{ '-1' }}&special_current_path={{quoted_special_current_path}}&special_folder_name={{ '' }}">..</a>
+        </li>
+        {% endif %}
+        {% for special_file_info in special_file_info_list %}
+        <li>
+            {% if special_file_info.is_directory %}            
+                <a href="/list?current_path={{quoted_current_path}}&folder_name={{ '-1' }}&special_current_path={{quoted_special_current_path}}&special_folder_name={{ special_file_info.quoted_file_name }}">{{ special_file_info.file_name }}/</a>
+            {% else %}
+                <a href="/download_special_file?special_current_path={{quoted_special_current_path}}&special_file_name={{ special_file_info.quoted_file_name }}&special_file_size={{special_file_info.size_int}}">{{ special_file_info.file_name }}</a>
+            {{ special_file_info.size_mb }}
+            {% endif %}
+            
+        </li>
+        {% endfor %}
+    </ul>
+    <h2>文本</h2>
+    <h2>新建文件夹</h2>
+    <form id="text-form" method="POST" action="/rewrite_text?current_path={{quoted_current_path}}&special_current_path={{quoted_special_current_path}}">
+        <textarea rows="10" cols="30">
+            {{my_text}}
+            </textarea>
+        <input type="text" name="new_text" id="text-data" />
+        <button type="submit" id="send-button">更改</button>
+    </form>
+    
+</body>
+</html>
