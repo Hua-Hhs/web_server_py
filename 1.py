@@ -26,6 +26,8 @@ special_files_id = []
 current_special_files_info = {'is_used': True}
 anime_titles = []
 anime_covers = []
+anime_chapter_list = []
+anime_chapter_list_id = []
 my_text = ''
 current_path = ''
 # 脚本所在文件夹
@@ -144,7 +146,6 @@ async def rewrite_text(request):
     print('---create_folder complete---')
     raise web.HTTPFound(url)
 
-# 下载文件，需要输入参数 文件路径current_directory和文件名称filename
 async def download2(request):
     # return web.FileResponse('')
     return web.FileResponse('E:\\web\\myweb\\files\\video.mp4')
@@ -273,6 +274,22 @@ def delete_special_files(UUID):
     special_files.pop(index)
     special_files_id.pop(index)
 
+# 通过文件的UUID（自定义的UUID）为文件缓冲区添加新文件
+def add_new_chapter(UUID):
+    global anime_chapter_list_id
+    global anime_chapter_list
+    anime_chapter_list_id.append(UUID)
+    anime_chapter_list.append({'UUID': UUID, 'chapters': []})
+    pass
+
+# 根据文件UUID删除文件缓冲区的文件
+def delete_chapter(UUID):
+    global anime_chapter_list_id
+    global anime_chapter_list
+    index = anime_chapter_list_id.index(UUID)
+    anime_chapter_list_id.pop(index)
+    anime_chapter_list.pop(index)
+
 # 与特殊客户端建立连接并循环接收报文
 
 
@@ -309,6 +326,15 @@ async def handle_special_client(request):
                     # print(msg)
                     current_special_files_info = msg['Infos']
                     # current_special_files_info.append({'is_used'L})
+                elif (msg['Type'] == 'chapters'):
+                    UUID = msg['UUID']
+                    chapters = msg['chapters']
+                    index = anime_chapter_list_id.index(UUID)
+                    anime_chapter_list[index]['chapters'] = chapters
+                elif (msg['Type'] == 'title'):
+                    global anime_titles 
+                    anime_titles = msg['titles']
+                
 
             except Exception as e:
                 print(f"download special file error: {e} ")
@@ -411,8 +437,8 @@ async def download_special_file(request):
         'UUID': UUID,
         'FileType': 'file'
     }
-    await special_client_connection.send_json(headers)
     add_new_special_file(UUID)
+    await special_client_connection.send_json(headers)
     # chunk_size = 8192
     # file_size = get_file_size(special_file_name)
     # 编写请求头
@@ -420,37 +446,38 @@ async def download_special_file(request):
         'Content-Disposition': f'attachment; filename="{special_file_name}"',
         'Content-Length': str(special_file_size)
     }
-    global special_files
-    global special_files_id
+    # global special_files
+    # global special_files_id
 
-    async def get_next_chunk_by_id(UUID):
+    # async def get_next_chunk_by_id(UUID):
 
-        index = special_files_id.index(UUID)
-        chunks = special_files[index]['Data']
+    #     index = special_files_id.index(UUID)
+    #     chunks = special_files[index]['Data']
 
-        while True:
-            if chunks:
-                break
-            await asyncio.sleep(0.1)
+    #     while True:
+    #         if chunks:
+    #             break
+    #         await asyncio.sleep(0.1)
 
-        current_chunk = chunks[0]
-        chunks.pop(0)
-        return current_chunk
+    #     current_chunk = chunks[0]
+    #     # chunks.pop(0)
+    #     delete_special_files(UUID)
+    #     return current_chunk
 
-    async def file_stream(UUID):
-        while True:
-            current_chunk = await get_next_chunk_by_id(UUID)
-            chunk_data = current_chunk['Chunk']
-            # print(current_chunk)
-            # 将字符串重新编码为utf-8的二进制序列（该序列被b64编码过）
-            chunk_data = chunk_data.encode(encoding='utf-8')
-            # b64解码,获得原二进制序列
-            chunk_data = base64.b64decode(chunk_data)
+    # async def file_stream(UUID):
+    #     while True:
+    #         current_chunk = await get_next_chunk_by_id(UUID)
+    #         chunk_data = current_chunk['Chunk']
+    #         # print(current_chunk)
+    #         # 将字符串重新编码为utf-8的二进制序列（该序列被b64编码过）
+    #         chunk_data = chunk_data.encode(encoding='utf-8')
+    #         # b64解码,获得原二进制序列
+    #         chunk_data = base64.b64decode(chunk_data)
 
-            # print(chunk_data)
-            yield chunk_data
-            if current_chunk['Is_the_last'] == True:
-                break
+    #         # print(chunk_data)
+    #         yield chunk_data
+    #         if current_chunk['Is_the_last'] == True:
+    #             break
 
     print('---download_special_file complete---')
     print('接收中')
@@ -605,23 +632,82 @@ async def handle_video_request(request):
 
 async def get_anime_info(request):
     # 连接特殊服务器时使用
-    # global special_client_connection
-    # await special_client_connection.send_json({'Type': 'animeinfo'})
-    # global anime_titles
-    # while (not anime_titles):
-    #     await asyncio.sleep(1)
-    #     pass
-    # msg={'titles':anime_titles}
+    global special_client_connection
+    print('get_anime_info')
+    # msg = {'Type'}
+    await special_client_connection.send_json({'Type': 'animeinfo'})
+    global anime_titles
+    while (not anime_titles):
+        await asyncio.sleep(1)
+        pass
+    msg={'titles':anime_titles}
     
-    # anime_titles = []
-
-    msg = {"titles": [
-        "魔圆",
-        "bule bird",
-        "Trick"
-    ]}
+    anime_titles = []
+    print('get_anime_info_over')
+    # msg = {"titles": [
+    #     "魔圆",
+    #     "bule bird",
+    #     "Trick"
+    # ]}
     return web.json_response(msg)
 
+async def get_current_anime_chapter(request):
+    msg = await request.json()
+    # print(postdata)
+    print(request)
+    current_anime_title = msg.get("current_path")
+    # current_anime_title = request.query['current_anime_title']
+    global special_client_connection
+    UUID = str(uuid.uuid4())
+    msg = {
+        'Type': 'chapters',
+        'Title': current_anime_title,
+        'UUID': UUID,
+    }
+    await special_client_connection.send_json(msg)
+    global anime_chapter_list_id
+    add_new_chapter(UUID)
+    print(anime_chapter_list_id)
+    index = anime_chapter_list_id.index(UUID)
+    chapters = anime_chapter_list[index]['chapters']
+    while(not chapters):
+        await asyncio.sleep(0.1)
+        chapters = anime_chapter_list[index]['chapters']
+    delete_chapter(UUID)
+    print(chapters)
+    print('get_current_anime_chapter_over')
+    return web.json_response({'chapters':chapters})
+    
+
+async def get_next_chunk_by_id(UUID):
+
+    index = special_files_id.index(UUID)
+    chunks = special_files[index]['Data']
+
+    while True:
+        if chunks:
+            break
+        await asyncio.sleep(0.1)
+
+    current_chunk = chunks[0]
+    # delete_special_files(UUID)
+    chunks.pop(0)
+    return current_chunk
+
+async def file_stream(UUID):
+    while True:
+        current_chunk = await get_next_chunk_by_id(UUID)
+        chunk_data = current_chunk['Chunk']
+        # print(current_chunk)
+        # 将字符串重新编码为utf-8的二进制序列（该序列被b64编码过）
+        chunk_data = chunk_data.encode(encoding='utf-8')
+        # b64解码,获得原二进制序列
+        chunk_data = base64.b64decode(chunk_data)
+
+        # print(chunk_data)
+        yield chunk_data
+        if current_chunk['Is_the_last'] == True:
+            break
 async def get_anime_cover(request):
     global anime_root_path
     title = request.query['title']
@@ -633,57 +719,30 @@ async def get_anime_cover(request):
         'UUID': UUID,
         'FileType': 'cover'
     }
-    await special_client_connection.send_json(headers)
     add_new_special_file(UUID)
+    await special_client_connection.send_json(headers)
 
-    global special_files
-    global special_files_id
+    # global special_files
+    # global special_files_id
 
-    async def get_next_chunk_by_id(UUID):
 
-        index = special_files_id.index(UUID)
-        chunks = special_files[index]['Data']
-
-        while True:
-            if chunks:
-                break
-            await asyncio.sleep(0.1)
-
-        current_chunk = chunks[0]
-        chunks.pop(0)
-        return current_chunk
-
-    async def file_stream(UUID):
-        while True:
-            current_chunk = await get_next_chunk_by_id(UUID)
-            chunk_data = current_chunk['Chunk']
-            # print(current_chunk)
-            # 将字符串重新编码为utf-8的二进制序列（该序列被b64编码过）
-            chunk_data = chunk_data.encode(encoding='utf-8')
-            # b64解码,获得原二进制序列
-            chunk_data = base64.b64decode(chunk_data)
-
-            # print(chunk_data)
-            yield chunk_data
-            if current_chunk['Is_the_last'] == True:
-                break
     return web.Response(body=file_stream(UUID))
 
     # return web.Response(body=read_file_in_chunks(cover_path))
 
 
-async def get_file_blocks(file_path):  
-    file_path = 'E:\\web\\myweb\\files\\bule bird\\video.mp4'
-    file_size = os.path.getsize(file_path)  
-    block_size = 1024 * 1024  # 1MB  
-    blocks = []  
-    with open(file_path, 'rb') as file:  
-        for i in range(0, file_size, block_size):  
-            block = file.read(min(block_size, file_size - i))  
-            blocks.append(block)  
-    # block = urllib.parse.quote(block)  
-    data = {'block':block}
-    return block  
+# async def get_file_blocks(file_path):  
+#     file_path = 'E:\\web\\myweb\\files\\bule bird\\video.mp4'
+#     file_size = os.path.getsize(file_path)  
+#     block_size = 1024 * 1024  # 1MB  
+#     blocks = []  
+#     with open(file_path, 'rb') as file:  
+#         for i in range(0, file_size, block_size):  
+#             block = file.read(min(block_size, file_size - i))  
+#             blocks.append(block)  
+#     # block = urllib.parse.quote(block)  
+#     data = {'block':block}
+#     return block  
 
 
 app.router.add_get('/', index)
@@ -698,14 +757,17 @@ app.router.add_post('/list', list_directory)
 app.router.add_post('/createfolder', create_folder)
 app.router.add_get('/9000', handle_special_client)
 app.router.add_get('/download_special_file', download_special_file)
-app.router.add_get('/test2', test2)
+# app.router.add_get('/test2', test2)
 app.router.add_get('/handle_video_request', handle_video_request)
 app.router.add_post('/handle_video_request', handle_video_request)
 app.router.add_get('/get_anime_cover', get_anime_cover)
 app.router.add_post('/get_anime_cover', get_anime_cover)
 app.router.add_get('/get_anime_info', get_anime_info)
-app.router.add_post('/get_anime_info', get_anime_info)
-app.router.add_get('/get-file-blocks', get_file_blocks)
+
+app.router.add_get('/get_current_anime_chapter', get_current_anime_chapter)
+app.router.add_post('/get_current_anime_chapter', get_current_anime_chapter)
+# app.router.add_post('/get_anime_info', get_anime_info)
+# app.router.add_get('/get-file-blocks', get_file_blocks)
 
 
 if __name__ == '__main__':
